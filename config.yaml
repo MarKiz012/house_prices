@@ -1,0 +1,38 @@
+#   python main.py train --set model.name=lasso --set features.encoding=onehot --set features.scale=true
+#   python main.py train --set model.params.ridge.alpha=5
+
+seed: 42
+
+data:
+  train_path: data/raw/train.csv
+  test_path: data/raw/test.csv
+  target: SalePrice
+  id_column: Id
+  drop_outliers: true # убрать из train огромные дешёвые дома (GrLivArea > 4000, цена < 300k)
+
+target_log: true # учить на log(1 + SalePrice) — Kaggle считает RMSE по логарифму цены
+
+features:
+  engineering: true # добавлять признаки House Prices (TotalSF, возраст дома, оценки качества 0..5, ...)
+  encoding: ordinal # ordinal — для деревьев, onehot — для линейных моделей
+  scale: false # масштабировать числовые признаки
+
+model:
+  name: histgb
+  # Параметры по имени модели: берутся только для выбранной,
+  # поэтому --set model.name=... не тащит чужие параметры.
+  params:
+    ridge: {alpha: 10}
+    lasso: {alpha: 0.0005}
+    elasticnet: {alpha: 0.0005, l1_ratio: 0.5}
+    rf: {n_estimators: 500, max_features: 0.3}
+    histgb: {max_iter: 1000, learning_rate: 0.03, max_leaf_nodes: 15, min_samples_leaf: 10, l2_regularization: 1.0}
+    lgbm: {n_estimators: 2000, learning_rate: 0.01, num_leaves: 15, subsample: 0.7, subsample_freq: 1, colsample_bytree: 0.5}
+    xgb: {n_estimators: 2000, learning_rate: 0.01, max_depth: 4, subsample: 0.7, colsample_bytree: 0.5}
+    catboost: {iterations: 3000, learning_rate: 0.03, depth: 6}
+
+cv:
+  n_splits: 5
+  shuffle: true
+
+output_dir: outputs
