@@ -14,6 +14,7 @@
 │   ├── data.py            чтение csv, удаление выбросов, разбиение на фолды
 │   ├── features.py        признаки House Prices + пропуски и кодирование категорий
 │   ├── models.py          создание модели по имени из конфига
+│   ├── nn.py              нейросеть на PyTorch с интерфейсом sklearn
 │   └── training.py        цикл по фолдам, метрики, сохранение результатов
 ├── notebooks/
 │   └── 01_eda.ipynb       разведочный анализ данных
@@ -52,6 +53,11 @@ python main.py train
 
 Все команды запускаются из корня проекта.
 
+Версии в `requirements.txt` зафиксированы жёстко (`==`), чтобы у всех получались
+одинаковые цифры. Бустинги и `torch` нужны только для соответствующих моделей —
+без них остальной пайплайн работает, а попытка выбрать такую модель даст
+понятное сообщение с командой установки.
+
 Результат — папка `outputs/<дата>_<модель>/`:
 
 ```
@@ -69,14 +75,24 @@ models/         обученные модели по каждому фолду
 python main.py train --set model.name=lasso --set features.encoding=onehot --set features.scale=true
 python main.py train --set model.name=lasso --set features.encoding=onehot --set features.scale=true --set model.params.lasso.alpha=0.001
 python main.py train --set model.name=lgbm --set model.params.lgbm.num_leaves=31
+python main.py train --set model.name=nn --set features.encoding=onehot --set features.scale=true
 python main.py train --set features.engineering=false     # без доменных признаков
 python main.py predict                                   # предсказать последним обученным запуском
 python main.py predict --run-dir outputs/2026-09-26_12-00-00_lasso
 ```
 
 Доступные модели: `ridge`, `lasso`, `elasticnet`, `rf`, `histgb` (только scikit-learn),
-`lgbm`, `xgb`, `catboost`. Линейным нужны `features.encoding=onehot` и
-`features.scale=true`, деревьям — `ordinal` без масштабирования (стоит по умолчанию).
+`lgbm`, `xgb`, `catboost`, `nn` (PyTorch).
+
+Линейным моделям и нейросети нужны `features.encoding=onehot` и
+`features.scale=true` — им важен масштаб признаков и они не переваривают
+ordinal-кодирование, которое навязывает категориям ложный порядок. Деревьям
+наоборот: `ordinal` без масштабирования (стоит по умолчанию).
+
+Нейросеть (`src/nn.py`) — небольшой полносвязный регрессор с ранней остановкой:
+на неё уходит 15% train-фолда, так что валидационный фолд остаётся честным.
+Таргет внутри сети дополнительно стандартизуется — это деталь обучения,
+снаружи сеть ведёт себя как любая модель sklearn.
 
 Параметры моделей лежат в конфиге по имени модели (`model.params.lasso`,
 `model.params.lgbm`, ...), поэтому при `--set model.name=...` берутся только
@@ -109,6 +125,21 @@ jupyter notebook notebooks/01_eda.ipynb
 `log1p(SalePrice)` (`target_log: true`) — через `TransformedTargetRegressor`,
 так что `predict` сразу возвращает доллары и сохранённые модели самодостаточны.
 
+**MAPE и WAPE — для разговора с бизнесом.** `rmse_log` удобен для сравнения
+моделей, но не объясняется в двух словах. Обе новые метрики отвечают на вопрос
+«на сколько процентов мы обычно промахиваемся», только взвешивают дома
+по-разному:
+
+| Метрика | Формула | Кого слушает |
+|---|---|---|
+| `mape` | среднее из \|факт − прогноз\| / факт | каждый дом весит одинаково, поэтому дешёвые доминируют |
+| `wape` | Σ\|факт − прогноз\| / Σ факт | дома весят пропорционально цене — «сколько денег теряем на всём портфеле» |
+
+Обе в процентах. Если `mape` заметно больше `wape`, значит основная
+относительная ошибка сидит в дешёвом сегменте — там же стоит искать признаки.
+WAPE устойчивее: у MAPE знаменатель — цена конкретного дома, и один очень
+дешёвый объект способен раздуть метрику.
+
 **Выбросы удаляются только из train.** Два огромных дома (>4000 кв. футов),
 проданных за бесценок, сильно портят линейные модели. Тест не трогается.
 
@@ -134,5 +165,6 @@ test сразу, без риска утечки.
 |---|---|
 | новый признак | `src/features.py`, функция `add_features` |
 | новая модель | `src/models.py`, функция `build_model`, + параметры в `config.yaml` |
+| настройки нейросети | `config.yaml` → `model.params.nn`, код — `src/nn.py` |
 | новая метрика | `src/training.py`, функция `compute_metrics` |
 | другой датасет | `config.yaml` → `data`, и `features.engineering: false` |

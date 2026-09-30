@@ -39,10 +39,7 @@ def load_data(cfg):
 
 def drop_outliers(train, target):
     """Убирает огромные дома с аномально низкой ценой.
-
-    Автор датасета (De Cock) сам советует выкинуть дома с GrLivArea > 4000:
-    в train их 4, и два из них — частичные продажи за бесценок. Они сильно
-    тянут линейные модели. Трогаем только train — тест не меняется.
+       Трогаем только train — тест не меняется.
     """
     if not {"GrLivArea", target} <= set(train.columns):
         return train

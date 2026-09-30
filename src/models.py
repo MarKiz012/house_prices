@@ -48,6 +48,18 @@ def build_model(cfg):
 
         return CatBoostRegressor(verbose=0, allow_writing_files=False, random_seed=seed, **params)
 
+    if name == "nn":
+        # Нейросети нужны плотные числовые признаки одного масштаба:
+        # запускайте с features.encoding=onehot и features.scale=true.
+        try:
+            from src.nn import TorchMLPRegressor
+        except ImportError as exc:
+            raise ImportError(
+                "Для model.name=nn нужен PyTorch: pip install torch"
+            ) from exc
+
+        return TorchMLPRegressor(random_state=seed, **params)
+
     raise ValueError(
-        f"Неизвестная модель '{name}'. Доступные: ridge, lasso, elasticnet, rf, histgb, lgbm, xgb, catboost"
+        f"Неизвестная модель '{name}'. Доступные: ridge, lasso, elasticnet, rf, histgb, lgbm, xgb, catboost, nn"
     )

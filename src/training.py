@@ -9,7 +9,12 @@ import numpy as np
 import pandas as pd
 from sklearn.base import clone
 from sklearn.compose import TransformedTargetRegressor
-from sklearn.metrics import mean_absolute_error, r2_score, root_mean_squared_error
+from sklearn.metrics import (
+    mean_absolute_error,
+    mean_absolute_percentage_error,
+    r2_score,
+    root_mean_squared_error,
+)
 from sklearn.pipeline import Pipeline
 
 from src.data import load_data, make_folds
@@ -18,12 +23,16 @@ from src.models import build_model
 
 
 def compute_metrics(y_true, pred):
-    """rmse_log — метрика Kaggle (RMSE между логарифмами цен), по ней и сравниваем."""
+    """rmse_log — метрика Kaggle (RMSE между логарифмами цен), по ней и сравниваем.
+    """
+    y_true = np.asarray(y_true, dtype=float)
     pred = np.clip(pred, 1, None)  # на всякий случай: логарифм от отрицательной цены не взять
     return {
         "rmse_log": root_mean_squared_error(np.log(y_true), np.log(pred)),
         "rmse": root_mean_squared_error(y_true, pred),
         "mae": mean_absolute_error(y_true, pred),
+        "mape": mean_absolute_percentage_error(y_true, pred) * 100,
+        "wape": np.sum(np.abs(y_true - pred)) / np.sum(np.abs(y_true)) * 100,
         "r2": r2_score(y_true, pred),
     }
 

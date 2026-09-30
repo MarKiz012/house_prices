@@ -30,6 +30,8 @@ model:
     lgbm: {n_estimators: 2000, learning_rate: 0.01, num_leaves: 15, subsample: 0.7, subsample_freq: 1, colsample_bytree: 0.5}
     xgb: {n_estimators: 2000, learning_rate: 0.01, max_depth: 4, subsample: 0.7, colsample_bytree: 0.5}
     catboost: {iterations: 3000, learning_rate: 0.03, depth: 6}
+    # Нейросеть: запускать с features.encoding=onehot и features.scale=true
+    nn: {hidden_sizes: [64, 32], dropout: 0.2, lr: 0.001, epochs: 200, batch_size: 64}
 
 cv:
   n_splits: 5
